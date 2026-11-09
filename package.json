@@ -1,0 +1,9 @@
+{
+  "name": "mygo-yicotseng",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": { "e2e": "node scripts/e2e.mjs" }
+}

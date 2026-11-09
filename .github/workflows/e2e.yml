@@ -1,0 +1,32 @@
+name: End-to-end playback
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+      - name: Install audio tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Run live playback journey
+        run: npm run e2e
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: playback-verification
+          path: |
+            artifacts/e2e/**/report.json
+            artifacts/e2e/**/journey.json
+            artifacts/e2e/**/catalog.json
+            artifacts/e2e/**/ffprobe.json
+            artifacts/e2e/**/decode.log

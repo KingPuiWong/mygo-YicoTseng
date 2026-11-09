@@ -1,0 +1,23 @@
+{
+  "Yico Tseng": "曾轶可",
+  "Albums": "专辑",
+  "All Songs": "全部歌曲",
+  "Today's Picks": "今日推荐",
+  "Today's Yico": "今天听曾轶可",
+  "A different selection every day": "每天换一组歌",
+  "Recently Played": "最近播放",
+  "Shuffle All": "随机播放",
+  "Shuffle songs available without signing in": "随机播放无需登录即可收听的歌曲",
+  "songs": "首",
+  "The music service is unavailable. Please try again later.": "暂时无法连接音乐服务，请稍后重试。",
+  "Could not load Yico's catalog": "无法读取曾轶可曲库",
+  "This song is not in Yico's catalog": "这首歌不在曾轶可曲库中",
+  "This album is unavailable": "这张专辑暂不可用",
+  "This page is unavailable": "这个页面暂不可用",
+  "This artist is unavailable": "这个艺人暂不可用",
+  "This station is unavailable": "这个电台暂不可用",
+  "No songs are currently available": "目前没有可播放的歌曲",
+  "This song requires a membership or purchase, or is unavailable in your region. Open it in NetEase Cloud Music to check.": "这首歌需要会员或购买，或在当前地区不可播。请在网易云音乐中查看播放权限。",
+  "Only a preview is available for this song. Open it in NetEase Cloud Music to listen.": "当前只能获取这首歌的试听片段，请在网易云音乐中收听。",
+  "The music service returned an unsupported audio format": "音乐服务返回了暂不支持的音频格式"
+}

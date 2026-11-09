@@ -1,0 +1,34 @@
+{
+  "startedAt": "2026-11-09T02:14:46.328Z",
+  "status": "passed",
+  "checks": [
+    "首页返回歌曲",
+    "读取完整曲库与专辑",
+    "搜索与搜索建议指向同一首歌",
+    "专辑和艺人页包含验证歌曲",
+    "收藏和最近播放经过落盘后仍可恢复",
+    "随机播放返回真实曲库中的歌曲",
+    "下载真实歌曲并完整解码音轨"
+  ],
+  "nativeUI": "not verified",
+  "sourceSHA256": "c4731f135a17d2d2ed62ee266f7f5a77ca767f3a501d08068c32921181920825",
+  "manifestSHA256": "f6fa8eed7b7bf286c5b6251fe9898d7d01263123e364a2824ac6ef33146b993e",
+  "tracks": 200,
+  "albums": 66,
+  "song": {
+    "id": "340376",
+    "name": "夜车",
+    "album": "一只猫的旅行 Forever 21"
+  },
+  "lyrics": {
+    "timed": true
+  },
+  "audio": {
+    "bytes": 3071208,
+    "sha256": "4ce6f6c761fb8db3432a1ac47d313d19fe398a048aaf6968cc98f29119bdf8d1",
+    "seconds": 191.889705,
+    "type": "mp3",
+    "host": "m801.music.126.net"
+  },
+  "finishedAt": "2026-11-09T02:14:49.152Z"
+}
