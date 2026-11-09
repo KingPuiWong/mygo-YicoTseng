@@ -1,15 +1,19 @@
 {
   "id": "yicotseng",
   "name": "Yico Tseng",
-  "version": "0.1.0",
-  "minAppVersion": "0.1.8",
+  "version": "0.2.0",
+  "minAppVersion": "0.1.21",
   "main": "index.js",
   "playback": "stream",
   "permissions": {
-    "network": ["music.163.com", "*.music.126.net"]
+    "network": ["music.163.com", "*.music.126.net", "api.bilibili.com", "*.bilivideo.com", "*.hdslb.com"]
   },
+  "requestHeaders": [
+    { "hosts": ["*.hdslb.com"], "kinds": ["image"], "headers": { "Referer": "https://www.bilibili.com/", "User-Agent": "Mozilla/5.0" } }
+  ],
   "navigation": [
     { "builtin": "home" },
+    { "title": "Official Live & Re-recordings", "page": "official", "icon": "note" },
     { "title": "Albums", "page": "albums", "icon": "album" },
     { "title": "All Songs", "page": "all", "icon": "note" },
     { "builtin": "liked" },

@@ -28,5 +28,5 @@ jobs:
             artifacts/e2e/**/report.json
             artifacts/e2e/**/journey.json
             artifacts/e2e/**/catalog.json
-            artifacts/e2e/**/ffprobe.json
-            artifacts/e2e/**/decode.log
+            artifacts/e2e/**/*-ffprobe.json
+            artifacts/e2e/**/*-decode.log

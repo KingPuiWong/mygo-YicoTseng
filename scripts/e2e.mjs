@@ -13,6 +13,7 @@ const report = { startedAt: new Date().toISOString(), status: "running", checks:
 const journey = [];
 const storageFile = join(output, "storage.json");
 const settings = JSON.parse(process.env.E2E_SETTINGS_JSON || "{}");
+const requestedQuality = process.env.E2E_QUALITY || "high";
 let storage = {};
 const manifest = JSON.parse(await readFile(join(root, "plugin.json"), "utf8"));
 const translations = JSON.parse(await readFile(join(root, "locales", "zh-CN.json"), "utf8"));
@@ -39,6 +40,38 @@ async function checked(label, action) {
   journey.push({ action: label, at: new Date().toISOString() });
   await persist();
   return value;
+}
+
+async function decodeTrack(plugin, track, quality) {
+  const stream = await plugin.stream({ id: track.id, quality });
+  assert(["mp3", "flac", "ogg", "wav", "m4a", "aac"].includes(stream.type));
+  const response = await fetch(stream.url, { headers: stream.headers || {}, signal: AbortSignal.timeout(120000) });
+  assert(response.ok, `音频 HTTP ${response.status}: ${track.name}`);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  assert(bytes.length > 1024, "音频响应内容太短");
+  const prefix = track.id.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const audio = join(output, `${prefix}.${stream.type}`);
+  await writeFile(audio, bytes);
+  const probeText = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration,format_name:stream=codec_name,sample_rate,channels,bit_rate", "-of", "json", audio], { encoding: "utf8" });
+  const probe = JSON.parse(probeText);
+  await writeFile(join(output, `${prefix}-ffprobe.json`), probeText);
+  const audioStream = probe.streams.find((item) => item.sample_rate);
+  assert(audioStream, "没有可解码音轨");
+  const decoded = execFileSync("ffmpeg", ["-v", "error", "-i", audio, "-map", "0:a:0", "-f", "null", "-"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  await writeFile(join(output, `${prefix}-decode.log`), decoded || "音轨完整解码成功；FFmpeg 无错误输出。\n");
+  const result = {
+    id: track.id, name: track.name, album: track.album.name,
+    bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"),
+    seconds: Number(probe.format.duration), type: stream.type, codec: audioStream.codec_name,
+    bitrate: Number(audioStream.bit_rate || 0), reportedBitrate: stream.bitRate, quality: stream.quality,
+    host: new URL(stream.url).hostname,
+  };
+  assert(result.seconds > 10);
+  if (track.duration > 0) assert(result.seconds * 1000 >= track.duration - 5000, "实际音频短于歌曲时长，可能是试听片段");
+  report.playbacks ||= [];
+  report.playbacks.push(result);
+  console.log(JSON.stringify({ decoded: track.id, name: track.name, bitrate: result.bitrate, seconds: result.seconds }));
+  return result;
 }
 
 try {
@@ -106,24 +139,50 @@ try {
   report.lyrics = { timed: Boolean(lyrics.lines?.length || /\[\d+:\d+/.test(lyrics.lrc || "")) };
   await persist();
 
-  await checked("下载真实歌曲并完整解码音轨", async () => {
-    const stream = await plugin.stream({ id: target.id, quality: "standard" });
-    assert(["mp3", "flac", "ogg", "wav", "m4a", "aac"].includes(stream.type));
-    const response = await fetch(stream.url, { headers: stream.headers || {}, signal: AbortSignal.timeout(120000) });
-    assert(response.ok, `音频 HTTP ${response.status}`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    assert(bytes.length > 1024, "音频响应内容太短");
-    const audio = join(output, `audio.${stream.type}`);
-    await writeFile(audio, bytes);
-    const probeText = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration,format_name:stream=codec_name,sample_rate,channels", "-of", "json", audio], { encoding: "utf8" });
-    const probe = JSON.parse(probeText);
-    await writeFile(join(output, "ffprobe.json"), probeText);
-    assert(probe.streams.some((stream) => stream.sample_rate), "没有可解码音轨");
-    const decoded = execFileSync("ffmpeg", ["-v", "error", "-i", audio, "-map", "0:a:0", "-f", "null", "-"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    await writeFile(join(output, "decode.log"), decoded || "音轨完整解码成功；FFmpeg 无错误输出。\n");
-    report.audio = { bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"), seconds: Number(probe.format.duration), type: stream.type, host: new URL(stream.url).hostname };
-    assert(report.audio.seconds > 10);
-    if (target.duration > 0) assert(report.audio.seconds * 1000 >= target.duration - 5000, "实际音频短于歌曲时长，可能是试听片段");
+  report.requestedQuality = requestedQuality;
+  await checked("下载真实歌曲并验证高品质音轨", async () => {
+    report.audio = await decodeTrack(plugin, target, requestedQuality);
+    if (target.id === "340376" && requestedQuality !== "standard") {
+      assert(report.audio.bitrate >= 319000, "《夜车》高品质请求仍返回低于 320 kbps 的音频");
+    }
+  });
+  const official = await checked("官方版本拥有单独入口并保留原专辑版本", async () => {
+    const page = await plugin.browse({ page: "official" });
+    const tracks = page.sections.flatMap((section) => section.tracks || []);
+    assert(tracks.length >= 22, "官方现场／重录曲库缺少条目");
+    assert(tracks.every((track) => track.id.startsWith("bili:") && /官方|Official/.test(track.name)), "官方版本缺少独立 ID 或标签");
+    assert(tracks.every((track) => all.some((value) => value.id === track.id)), "全部歌曲页没有收录官方版本");
+    const original = all.find((track) => track.id === "530986063");
+    assert(original && original.name === "私奔" && original.url.includes("music.163.com"), "原版《私奔》被自动替换");
+    const results = await plugin.search({ query: "私奔", kind: "tracks", offset: 0 });
+    assert(results.tracks.some((track) => track.id === original.id));
+    assert(results.tracks.some((track) => track.id.startsWith("bili:") && /现场|Live/.test(track.name)));
+    assert(results.tracks.some((track) => track.id.startsWith("bili:") && /重录|Re-recording/.test(track.name)));
+    for (const track of tracks) {
+      const album = await plugin.album({ id: track.album.id });
+      assert(album.tracks.some((value) => value.id === track.id));
+    }
+    return tracks;
+  });
+  report.officialTracks = official.length;
+  await checked("两种曲源的收藏和最近播放可以同时恢复", async () => {
+    await plugin.like({ id: target.id, on: true });
+    await plugin.like({ id: official[0].id, on: true });
+    await plugin.played({ id: official[0].id });
+    await persist();
+    storage = JSON.parse(await readFile(storageFile, "utf8"));
+    plugin = await import(`${entry}?bothSources=${stamp}`);
+    const liked = await plugin.liked({ offset: 0 });
+    assert(liked.tracks.some((track) => track.id === target.id));
+    assert(liked.tracks.some((track) => track.id === official[0].id));
+    assert.equal((await plugin.recent())[0].id, official[0].id);
+    assert.deepEqual(await plugin.lyrics({ id: official[0].id }), {}, "给官方新版本错误套用了原版歌词");
+  });
+  const byAlbum = [...new Set(official.map((track) => track.album.id))];
+  const selected = process.env.E2E_ALL_OFFICIAL === "1" ? official : byAlbum.map((id) => official.find((track) => track.album.id === id && track.name.includes("私奔")) || official.find((track) => track.album.id === id));
+  report.officialAudit = process.env.E2E_ALL_OFFICIAL === "1" ? "every official track" : "one full track per official collection";
+  await checked("官方投稿通过真实播放地址和完整音轨解码", async () => {
+    for (const track of selected) await decodeTrack(plugin, track, "high");
   });
   report.status = "passed";
 } catch (error) {
